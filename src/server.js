@@ -715,22 +715,30 @@ app.post('/api/batch-create', async (req, res) => {
           status: 'batch_error',
           message: `Batch process failed: ${error.message}`
         });
-      } finally {
-        // Always close the browser when done
+        // Close browser on critical error
         if (bot) {
           await bot.close();
           currentBot = null;
         }
-
+      } finally {
+        // Keep browser open after batch completion
+        // Browser will only close on server shutdown (Ctrl+C)
         isProcessing = false;
 
         broadcastStatus({
           status: 'batch_complete',
-          message: `Batch complete: ${successCount} songs created, ${failCount} failed`,
+          message: `Batch complete: ${successCount} songs created, ${failCount} failed. Browser kept open for next batch.`,
           total: songsCount,
           success: successCount,
           failed: failCount
         });
+
+        console.log('\n' + '='.repeat(60));
+        console.log('✅ Batch generation complete!');
+        console.log(`📊 Results: ${successCount} succeeded, ${failCount} failed`);
+        console.log('🌐 Browser kept open for next batch');
+        console.log('🛑 Press Ctrl+C to stop server and close browser');
+        console.log('='.repeat(60) + '\n');
       }
     })();
 
@@ -747,26 +755,33 @@ app.post('/api/batch-create', async (req, res) => {
 });
 
 // Handle graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, closing server...');
-  if (currentBot) {
-    await currentBot.close();
-  }
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
-});
+const gracefulShutdown = async (signal) => {
+  console.log(`\n${signal} received, shutting down gracefully...`);
 
-process.on('SIGINT', async () => {
-  console.log('\nSIGINT received, closing server...');
   if (currentBot) {
-    await currentBot.close();
+    console.log('🌐 Closing browser...');
+    try {
+      await currentBot.close();
+      console.log('✅ Browser closed successfully');
+    } catch (error) {
+      console.error('❌ Error closing browser:', error.message);
+    }
+    currentBot = null;
   }
+
   server.close(() => {
-    console.log('Server closed');
+    console.log('✅ Server closed');
     process.exit(0);
   });
-});
+
+  // Force exit after 10 seconds if graceful shutdown fails
+  setTimeout(() => {
+    console.error('⚠️  Forceful shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT')); // Ctrl+C
 
 export default app;
