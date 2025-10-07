@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Encrypted credentials (IMPORTANT: Never commit this file!)
+.credentials.enc
+
+# YouTube API Credentials (CRITICAL: Never commit these!)
+youtube-credentials.json
+youtube-token.json
+.google-auth/
+
+# Playwright
+playwright/.auth/
+test-results/
+playwright-report/
+
+# Downloads
+downloads/*.mp3
+downloads/*.mp4
+downloads/published/*.json
+downloads/published/videos/*.mp4
+
+# Configuration
+config.json
+settings.json
+config/style-presets.json
+
+# Generated videos and temporary files
+videos/
+*.mp4
+temp-*.png
+temp-*.jpg
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Screenshots (keeping the existing ones)
+!Screenshot*.png
+
+# Nested repositories
+v0.2/

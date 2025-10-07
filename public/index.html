@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suno Automation - Create AI Music</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'youtube-red': '#FF0000',
+                        'youtube-dark-red': '#CC0000',
+                        'youtube-blue': '#065FD4',
+                        'youtube-light-blue': '#3EA6FF',
+                        'bg-primary': '#0f0f0f',
+                        'bg-secondary': '#181818',
+                        'bg-tertiary': '#212121',
+                        'bg-hover': '#272727',
+                        'text-primary': '#ffffff',
+                        'text-secondary': '#aaaaaa',
+                        'text-tertiary': '#717171',
+                        'border-dark': '#303030',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        @keyframes shimmer {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        .animate-pulse-dot { animation: pulse 2s infinite; }
+        .animate-shimmer { animation: shimmer 2s infinite; }
+        .progress-gradient {
+            background: linear-gradient(90deg, #FF0000, #065FD4);
+        }
+
+        /* Activity Log styling - Full Height */
+        #logContent {
+            min-height: 100%;
+        }
+
+        /* Smooth scrolling */
+        aside {
+            scroll-behavior: smooth;
+        }
+
+        /* Log entries */
+        .log-entry {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.25rem 0;
+            line-height: 1.5;
+        }
+
+        .log-time {
+            color: #717171;
+            flex-shrink: 0;
+        }
+
+        .log-message {
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .log-success .log-message {
+            color: #3ea6ff;
+        }
+
+        .log-error .log-message {
+            color: #ff0000;
+        }
+
+        .log-warning .log-message {
+            color: #ffa500;
+        }
+
+        .log-info .log-message {
+            color: #aaaaaa;
+        }
+
+        /* Mobile responsiveness for sidebar */
+        @media (max-width: 1023px) {
+            aside {
+                border-left: none;
+                border-top: 1px solid #303030;
+                height: auto !important;
+                min-height: 400px;
+            }
+        }
+
+        /* Settings Modal Animation */
+        #settingsModal {
+            animation: fadeIn 0.2s ease-in-out;
+        }
+
+        #settingsModal > div {
+            animation: slideInDown 0.3s ease-out;
+        }
+
+        @keyframes slideInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body class="bg-bg-primary text-text-primary font-sans">
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="sticky top-0 z-50 bg-bg-secondary border-b border-border-dark">
+            <div class="max-w-full px-4 sm:px-6 lg:px-8 py-4">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-4">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <circle cx="16" cy="16" r="14" fill="#FF0000"/>
+                            <path d="M13 10L22 16L13 22V10Z" fill="white"/>
+                        </svg>
+                        <h1 class="text-xl font-medium text-text-primary">Suno Automation</h1>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2 text-sm text-text-secondary">
+                            <span class="w-2.5 h-2.5 rounded-full bg-text-tertiary animate-pulse-dot" id="statusDot"></span>
+                            <span id="connectionStatus">Connecting...</span>
+                        </div>
+                        <button
+                            id="settingsButton"
+                            class="p-2 hover:bg-bg-hover rounded-lg transition-colors"
+                            aria-label="Settings">
+                            <svg class="w-6 h-6 text-text-secondary hover:text-text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Layout with Sidebar -->
+        <div class="flex-1 flex flex-col lg:flex-row">
+            <!-- Main Content Area -->
+            <main class="flex-1 w-full lg:w-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Song Creation Section -->
+            <section class="bg-bg-secondary border border-border-dark rounded-xl mb-6 overflow-hidden">
+                <div class="px-6 py-4 border-b border-border-dark">
+                    <h2 class="text-lg font-medium flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+                        </svg>
+                        Create Songs
+                    </h2>
+                </div>
+                <div class="p-6">
+                    <div class="bg-bg-tertiary border border-border-dark rounded-lg p-4 mb-6">
+                        <p class="text-sm text-text-secondary">
+                            Create one or multiple songs with consistent style. Enter 1 for a single song, or more for batch generation.
+                        </p>
+                    </div>
+
+                    <div class="mb-6">
+                        <label for="batchStylePreset" class="block text-sm font-medium mb-2 flex items-center justify-between">
+                            <span>Style Preset</span>
+                            <button type="button" class="text-xs px-3 py-1 bg-youtube-blue hover:bg-youtube-light-blue text-white rounded transition-colors" onclick="toggleStyleManager()">
+                                Manage Styles
+                            </button>
+                        </label>
+                        <select id="batchStylePreset" class="w-full px-4 py-3 bg-bg-primary border border-border-dark rounded-lg text-text-primary focus:outline-none focus:border-youtube-blue transition-colors">
+                            <option value="">Select a style preset...</option>
+                        </select>
+
+                        <!-- Random Style Presets Checkbox -->
+                        <div class="mt-3 flex items-center">
+                            <input type="checkbox" id="randomStylePresets" class="w-4 h-4 bg-bg-primary border-border-dark rounded text-youtube-blue focus:ring-youtube-blue focus:ring-2">
+                            <label for="randomStylePresets" class="ml-2 text-sm text-text-primary cursor-pointer select-none">
+                                Random Style Presets
+                            </label>
+                        </div>
+
+                        <small class="block mt-2 text-xs text-text-tertiary">Choose which style to use. Enable "Random Style Presets" to randomly select different variations within the same category for each song (e.g., different Lo-fi presets for each round).</small>
+                    </div>
+
+                    <div class="mb-6">
+                        <label for="batchNumberOfSongs" class="block text-sm font-medium mb-2">Number of Songs</label>
+                        <input type="number" id="batchNumberOfSongs" class="w-full px-4 py-3 bg-bg-primary border border-border-dark rounded-lg text-text-primary focus:outline-none focus:border-youtube-blue transition-colors" min="1" max="50" value="1" step="1">
+                        <small class="block mt-2 text-xs text-text-tertiary">Each song creates 2 MP3 files (v1 and v2). Enter 1 for single song, or more for batch generation.</small>
+                    </div>
+
+                    <div class="mb-6">
+                        <label for="batchLyrics" class="block text-sm font-medium mb-2">Lyrics (Optional)</label>
+                        <textarea id="batchLyrics" class="w-full px-4 py-3 bg-bg-primary border border-border-dark rounded-lg text-text-primary placeholder-text-tertiary focus:outline-none focus:border-youtube-blue transition-colors resize-vertical font-mono leading-relaxed" rows="10" placeholder="Enter your song lyrics here (leave empty for instrumental)...
+
+Verse 1:
+Your lyrics go here
+
+Chorus:
+Your chorus here
+
+Verse 2:
+More lyrics..."></textarea>
+                        <small class="block mt-2 text-xs text-text-tertiary">Write your song lyrics or leave empty for instrumental music.</small>
+                    </div>
+
+                    <button type="button" class="w-full px-6 py-3 bg-youtube-red hover:bg-youtube-dark-red text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2" onclick="startBatchGeneration()">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M5 3l10 7-10 7V3z"/>
+                        </svg>
+                        Create Songs
+                    </button>
+                </div>
+            </section>
+
+            <!-- Status Dashboard -->
+            <section class="bg-bg-secondary border border-border-dark rounded-xl mb-6 overflow-hidden">
+                <div class="px-6 py-4 border-b border-border-dark">
+                    <h2 class="text-lg font-medium flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        Status
+                    </h2>
+                </div>
+                <div class="p-6">
+                    <div class="bg-bg-tertiary border border-border-dark rounded-lg p-4 mb-6" id="statusDisplay">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-text-secondary">Current Status:</span>
+                            <span class="text-sm font-medium text-text-primary" id="currentStatus">Idle</span>
+                        </div>
+                    </div>
+
+                    <div class="hidden mb-6" id="progressContainer">
+                        <div class="w-full h-2 bg-bg-tertiary rounded-full overflow-hidden mb-2">
+                            <div class="h-full progress-gradient animate-shimmer w-0 transition-all duration-300" id="progressFill"></div>
+                        </div>
+                        <p class="text-sm text-text-secondary text-center" id="progressText">Initializing...</p>
+                    </div>
+
+                    <!-- Login Progress Display -->
+                    <div class="hidden bg-bg-tertiary border border-border-dark rounded-lg p-6" id="loginStepsContainer">
+                        <h3 class="text-base font-medium mb-4">Login Progress</h3>
+                        <div class="max-h-96 overflow-y-auto bg-bg-primary p-4 rounded-lg border border-border-dark" id="loginSteps"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Published Videos Section -->
+            <section class="bg-bg-secondary border border-border-dark rounded-xl mb-6 overflow-hidden">
+                <div class="flex justify-between items-center px-6 py-4 border-b border-border-dark">
+                    <h2 class="text-lg font-medium flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                        </svg>
+                        Published Videos
+                    </h2>
+                    <button class="p-2 hover:bg-bg-hover rounded transition-colors" id="refreshPublished" aria-label="Refresh published videos">
+                        <svg class="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="p-6">
+                    <div id="publishedList" class="space-y-3">
+                        <div class="text-center py-12 text-text-tertiary">
+                            <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                            </svg>
+                            <p>No published videos yet. Download and publish your first song!</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            </main>
+
+            <!-- Right Sidebar - Activity Log (Full Height) -->
+            <aside class="w-full lg:w-96 bg-bg-secondary border-l border-border-dark flex flex-col" style="height: calc(100vh - 64px);">
+                <div class="px-6 py-4 border-b border-border-dark flex-shrink-0">
+                    <h2 class="text-lg font-medium flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                        Activity Log
+                    </h2>
+                </div>
+                <div class="flex-1 overflow-y-auto p-6">
+                    <div class="bg-bg-primary border border-border-dark rounded-lg p-4 font-mono text-xs min-h-full" id="logContent">
+                        <div class="flex gap-2 py-1">
+                            <span class="text-text-tertiary">[Ready]</span>
+                            <span class="text-youtube-blue">System initialized. Ready to create songs.</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Footer -->
+        <footer class="bg-bg-secondary border-t border-border-dark py-6 text-center text-text-tertiary text-sm">
+            <p>Suno Automation v1.0.0 | Powered by Playwright</p>
+        </footer>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-[60] flex items-center justify-center p-4">
+        <div class="bg-bg-secondary border border-border-dark rounded-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center px-6 py-4 border-b border-border-dark flex-shrink-0">
+                <h2 class="text-xl font-medium flex items-center gap-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    Settings
+                </h2>
+                <button class="p-2 hover:bg-bg-hover rounded transition-colors" id="closeSettingsModal">
+                    <svg class="w-5 h-5 text-text-secondary" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Body (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <div class="mb-6">
+                    <label for="authMethod" class="block text-sm font-medium mb-2">Authentication Method</label>
+                    <select id="authMethod" class="w-full px-4 py-3 bg-bg-primary border border-border-dark rounded-lg text-text-primary focus:outline-none focus:border-youtube-blue transition-colors">
+                        <option value="google">Google OAuth (Recommended)</option>
+                        <option value="password">Email & Password</option>
+                    </select>
+                </div>
+
+                <div id="passwordFields" class="hidden space-y-4 mb-6">
+                    <div>
+                        <label for="email" class="block text-sm font-medium mb-2">Email</label>
+                        <input type="email" id="email" class="w-full px-4 py-3 bg-bg-primary border border-border-dark rounded-lg text-text-primary placeholder-text-tertiary focus:outline-none focus:border-youtube-blue transition-colors" placeholder="your-email@example.com">
+                    </div>
+                    <div>
+                        <label for="password" class="block text-sm font-medium mb-2">Password</label>
+                        <input type="password" id="password" class="w-full px-4 py-3 bg-bg-primary border border-border-dark rounded-lg text-text-primary placeholder-text-tertiary focus:outline-none focus:border-youtube-blue transition-colors" placeholder="••••••••">
+                    </div>
+                </div>
+
+                <!-- Google Credentials Section -->
+                <div class="bg-bg-tertiary border border-border-dark rounded-lg p-6 mb-6">
+                    <h3 class="text-base font-medium mb-2">Google Account Credentials</h3>
+                    <p class="text-sm text-yellow-500 bg-yellow-500 bg-opacity-10 border-l-4 border-yellow-500 p-3 rounded mb-4">
+                        Credentials are encrypted and stored locally on your machine
+                    </p>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label for="googleEmail" class="block text-sm font-medium mb-2">Google Email:</label>
+                            <input type="email" id="googleEmail" class="w-full px-4 py-3 bg-bg-primary border border-border-dark rounded-lg text-text-primary placeholder-text-tertiary focus:outline-none focus:border-youtube-blue transition-colors" placeholder="your.email@gmail.com">
+                        </div>
+
+                        <div>
+                            <label for="googlePassword" class="block text-sm font-medium mb-2">Google Password:</label>
+                            <input type="password" id="googlePassword" class="w-full px-4 py-3 bg-bg-primary border border-border-dark rounded-lg text-text-primary placeholder-text-tertiary focus:outline-none focus:border-youtube-blue transition-colors" placeholder="Your password">
+                            <small class="block mt-2 text-xs text-text-tertiary">Only stored locally and used for automated login</small>
+                        </div>
+
+                        <div class="flex flex-wrap gap-3">
+                            <button class="px-6 py-2.5 bg-youtube-blue hover:bg-youtube-light-blue text-white font-medium rounded-lg transition-colors" id="saveCredentials">Save Credentials</button>
+                            <button class="px-6 py-2.5 bg-transparent border border-border-dark hover:bg-bg-hover text-text-primary font-medium rounded-lg transition-colors" id="clearCredentials">Clear Credentials</button>
+                        </div>
+
+                        <div id="credentialsStatus" class="text-sm text-center p-3 rounded-lg hidden"></div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label for="downloadPath" class="block text-sm font-medium mb-2">Download Folder</label>
+                    <div class="flex gap-3">
+                        <input type="text" id="downloadPath" class="flex-1 px-4 py-3 bg-bg-primary border border-border-dark rounded-lg text-text-primary focus:outline-none focus:border-youtube-blue transition-colors" placeholder="./downloads">
+                        <button type="button" class="px-6 py-3 bg-bg-tertiary border border-border-dark hover:bg-bg-hover text-text-primary font-medium rounded-lg transition-colors whitespace-nowrap" id="browseFolderBtn">
+                            Browse...
+                        </button>
+                    </div>
+                    <small class="block mt-2 text-xs text-text-tertiary">Downloaded MP3 files will be saved here. Click Browse to select a folder or type the path manually.</small>
+                </div>
+
+                <div class="mb-6">
+                    <label for="maxWaitMinutes" class="block text-sm font-medium mb-2">Wait Time After Creating Song (minutes)</label>
+                    <input type="number" id="maxWaitMinutes" class="w-full px-4 py-3 bg-bg-primary border border-border-dark rounded-lg text-text-primary focus:outline-none focus:border-youtube-blue transition-colors" min="1" max="30" value="3" step="1">
+                    <small class="block mt-2 text-xs text-text-tertiary">How long to wait after clicking "Create" before downloading the MP3 (Suno typically takes 2-5 minutes)</small>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 border-t border-border-dark bg-bg-tertiary flex-shrink-0">
+                <div class="flex flex-wrap gap-3 justify-end">
+                    <button class="px-6 py-2.5 bg-transparent border border-border-dark hover:bg-bg-hover text-text-primary font-medium rounded-lg transition-colors" id="testAuth">Test Authentication</button>
+                    <button class="px-6 py-2.5 bg-youtube-blue hover:bg-youtube-light-blue text-white font-medium rounded-lg transition-colors" id="saveSettings">Save Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Style Manager Modal -->
+    <div id="styleManagerModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+        <div class="bg-bg-secondary border border-border-dark rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center px-6 py-4 border-b border-border-dark">
+                <h2 class="text-xl font-medium flex items-center gap-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+                    </svg>
+                    Style Preset Manager
+                </h2>
+                <button class="p-2 hover:bg-bg-hover rounded transition-colors" onclick="toggleStyleManager()">
+                    <svg class="w-5 h-5 text-text-secondary" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <!-- Import/Export Buttons -->
+                <div class="flex flex-wrap gap-3 mb-6">
+                    <button class="px-4 py-2 bg-youtube-blue hover:bg-youtube-light-blue text-white font-medium rounded-lg transition-colors flex items-center gap-2" onclick="document.getElementById('importFileInput').click()">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        Import Presets
+                    </button>
+                    <input type="file" id="importFileInput" accept=".json" class="hidden" onchange="importStylePresets(event)">
+
+                    <button class="px-4 py-2 bg-transparent border border-border-dark hover:bg-bg-hover text-text-primary font-medium rounded-lg transition-colors flex items-center gap-2" onclick="exportStylePresets()">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+                        </svg>
+                        Export All
+                    </button>
+                </div>
+
+                <!-- Saved Presets -->
+                <div>
+                    <h3 class="text-base font-medium mb-4">Saved Style Presets</h3>
+                    <div id="stylePresetsContainer" class="space-y-3">
+                        <div class="text-center py-12 text-text-tertiary">
+                            <p>No saved presets yet. Save your first style!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 border-t border-border-dark bg-bg-tertiary">
+                <div class="flex justify-between items-center text-sm text-text-secondary">
+                    <span id="presetCount">0 presets saved</span>
+                    <button class="px-4 py-2 bg-youtube-red hover:bg-youtube-dark-red text-white font-medium rounded-lg transition-colors" onclick="toggleStyleManager()">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
