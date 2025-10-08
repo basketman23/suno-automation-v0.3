@@ -636,14 +636,20 @@ app.post('/api/batch-create', async (req, res) => {
       let bot = null;
 
       try {
-        // Create bot once and reuse for all songs
-        bot = new SunoBot();
-        currentBot = bot;
-        bot.setStatusCallback(broadcastStatus);
+        // Reuse existing bot if available, otherwise create new one
+        if (currentBot) {
+          console.log('🔄 Reusing existing browser session...');
+          bot = currentBot;
+        } else {
+          console.log('🌐 Creating new browser session...');
+          bot = new SunoBot();
+          currentBot = bot;
+          bot.setStatusCallback(broadcastStatus);
 
-        // Initialize browser once
-        await bot.initialize();
-        await bot.login();
+          // Initialize browser once
+          await bot.initialize();
+          await bot.login();
+        }
 
         for (let i = 0; i < songsCount; i++) {
           try {
