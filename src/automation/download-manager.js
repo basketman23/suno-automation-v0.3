@@ -139,17 +139,49 @@ export class DownloadManager {
   }
 
   /**
-   * Wait for user to solve CAPTCHA
+   * Wait for user to solve CAPTCHA (10 minute timeout)
    */
-  async waitForCaptchaSolution(maxWait = 300000) {
+  async waitForCaptchaSolution(maxWait = 600000) {
+    const timeoutMinutes = 10;
+    console.log(`\n⏳ Waiting for you to solve CAPTCHA (timeout: ${timeoutMinutes} minutes)...`);
+
+    // Update status via callback if available
+    if (this.statusCallback) {
+      this.statusCallback({
+        status: 'captcha_detected',
+        message: `⚠️ CAPTCHA detected - Please solve it within ${timeoutMinutes} minutes`,
+        progress: 0
+      });
+    }
+
     const startTime = Date.now();
+    let lastProgressUpdate = Date.now();
 
     while (Date.now() - startTime < maxWait) {
       await this.safeWaitForTimeout(5000);
 
+      // Show progress every 30 seconds
+      const elapsed = Date.now() - startTime;
+      if (Date.now() - lastProgressUpdate >= 30000) {
+        const remainingSeconds = Math.floor((maxWait - elapsed) / 1000);
+        const remainingMinutes = Math.floor(remainingSeconds / 60);
+        const seconds = remainingSeconds % 60;
+        console.log(`⏳ Time remaining: ${remainingMinutes}m ${seconds}s`);
+        lastProgressUpdate = Date.now();
+      }
+
       const stillHasCaptcha = await this.checkForCaptcha();
       if (!stillHasCaptcha) {
         console.log('✅ CAPTCHA solved! Continuing automation...');
+
+        if (this.statusCallback) {
+          this.statusCallback({
+            status: 'captcha_solved',
+            message: '✅ CAPTCHA solved successfully',
+            progress: 100
+          });
+        }
+
         return true;
       }
 
@@ -157,11 +189,36 @@ export class DownloadManager {
       const url = this.page.url();
       if (url.includes('suno.com') && !url.includes('404') && !url.includes('error')) {
         console.log('✅ Back on Suno.com - assuming CAPTCHA solved');
+
+        if (this.statusCallback) {
+          this.statusCallback({
+            status: 'captcha_solved',
+            message: '✅ CAPTCHA solved successfully',
+            progress: 100
+          });
+        }
+
         return true;
       }
     }
 
-    throw new Error('CAPTCHA solution timeout - user did not solve CAPTCHA within 5 minutes');
+    // CAPTCHA timeout - log and exit
+    const errorMessage = `❌ CAPTCHA not solved within ${timeoutMinutes} minutes - Stopping automation`;
+    console.log('\n' + '='.repeat(60));
+    console.log(errorMessage);
+    console.log('='.repeat(60) + '\n');
+
+    // Update status via callback
+    if (this.statusCallback) {
+      this.statusCallback({
+        status: 'captcha_timeout',
+        message: errorMessage,
+        error: true
+      });
+    }
+
+    // Close browser and exit
+    throw new Error(`CAPTCHA timeout - User did not solve CAPTCHA within ${timeoutMinutes} minutes`);
   }
 
   async checkSongStatus(songTitle) {
